@@ -1,0 +1,401 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Finance Form</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Alert Overlay -->
+    <div id="alertOverlay" class="alert-overlay">
+        <div class="alert-box">
+            <h3>Warning!</h3>
+            <p>You have unsaved changes. Are you sure you want to leave?</p>
+            <div class="alert-buttons">
+                <button onclick="handleStay()">Stay on Page</button>
+                <button class="btn-danger" onclick="handleLeave()">Leave Page</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="header">
+        <img src="logo.png" alt="Company Logo" class="logo">
+        <h1>नूतन कोपिला बहुउद्देश्यीय सहकारी संस्था लि.</h1>
+        <h2>Nutan kopila Multipurpose co-operative Ltd.</h2>
+        <p>Gokarneshwor -08, Kathmandu, Tel:–01-4910753</p>
+        <h3>दैनिक बचत/ऋण संकलन फारम</h3>
+    </div>
+
+    <div class="form-controls">
+        <div class="form-group">
+            <label>मिति:</label>
+            <input type="date" id="date" onchange="setFormChanged(true)">
+        </div>
+        <div class="form-group">
+            <label>क्षेत्र:</label>
+            <input type="text" id="sector" onchange="setFormChanged(true)">
+        </div>
+        <div class="form-group">
+            <label>बजार प्रतिनिधिको नाम:</label>
+            <input type="text" id="representative" onchange="setFormChanged(true)">
+        </div>
+        <div class="form-group">
+            <label>कूल सदस्य:</label>
+            <input type="number" id="totalMembers" onchange="setFormChanged(true)">
+        </div>
+    </div>
+
+    <table id="financeTable">
+        <thead>
+            <tr>
+                <th class="sn">क्र.सं.<br>S.N.</th>
+                <th>खातावालाको नाम<br>Account Holder</th>
+                <th>खाता नं.<br>Account No.</th>
+                <th>हिजोसम्म पासबुकमा<br>Previous Balance</th>
+                <th>आज जम्मा गरेको<br>Today Deposit</th>
+                <th>कर्जा असुली<br>Loan Payment</th>
+                <th>कुल जम्मा<br>Total Amount</th>
+            </tr>
+        </thead>
+        <tbody class="red">
+            <!-- Rows will be added here -->
+        </tbody>
+    </table>
+
+    <!-- New container for withdrawal and subsequent sections -->
+    <div class="withdrawal-container">
+        <!-- Withdrawal Section -->
+        <div class="withdrawal-section">
+            <h3>यदि बचत फिर्ता भए</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>खातावालाको नाम</th>
+                        <th>खाता नं.</th>
+                        <th>बचत फिर्ता रकम</th>
+                        <th>बाँकी रकम</th>
+                        <th>मो.नं.</th>
+                    </tr>
+                </thead>
+                <tbody id="withdrawalTable">
+                    <!-- Withdrawal rows will be added here -->
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Denomination Section -->
+        <div class="denomination-section">
+            <h3>रकम विवरण</h3>
+            <table class="denomination-table">
+                <tr>
+                    <td>१०००×</td>
+                    <td><input type="number" class="denomination" data-value="1000" onchange="calculateTotal()"></td>
+                    <td>=</td>
+                    <td class="denomination-total"></td>
+                </tr>
+                <tr>
+                    <td>५००×</td>
+                    <td><input type="number" class="denomination" data-value="500" onchange="calculateTotal()"></td>
+                    <td>=</td>
+                    <td class="denomination-total"></td>
+                </tr>
+                <tr>
+                    <td>१००×</td>
+                    <td><input type="number" class="denomination" data-value="100" onchange="calculateTotal()"></td>
+                    <td>=</td>
+                    <td class="denomination-total"></td>
+                </tr>
+                <tr>
+                    <td>५०×</td>
+                    <td><input type="number" class="denomination" data-value="50" onchange="calculateTotal()"></td>
+                    <td>=</td>
+                    <td class="denomination-total"></td>
+                </tr>
+                <tr>
+                    <td>२०×</td>
+                    <td><input type="number" class="denomination" data-value="20" onchange="calculateTotal()"></td>
+                    <td>=</td>
+                    <td class="denomination-total"></td>
+                </tr>
+                <tr>
+                    <td>१०×</td>
+                    <td><input type="number" class="denomination" data-value="10" onchange="calculateTotal()"></td>
+                    <td>=</td>
+                    <td class="denomination-total"></td>
+                </tr>
+                <tr>
+                    <td>५×</td>
+                    <td><input type="number" class="denomination" data-value="5" onchange="calculateTotal()"></td>
+                    <td>=</td>
+                    <td class="denomination-total"></td>
+                </tr>
+                <tr>
+                    <td>२×</td>
+                    <td><input type="number" class="denomination" data-value="2" onchange="calculateTotal()"></td>
+                    <td>=</td>
+                    <td class="denomination-total"></td>
+                </tr>
+                <tr>
+                    <td>१×</td>
+                    <td><input type="number" class="denomination" data-value="1" onchange="calculateTotal()"></td>
+                    <td>=</td>
+                    <td class="denomination-total"></td>
+                </tr>
+                <tr>
+                    <td colspan="3"><strong>जम्मा</strong></td>
+                    <td id="grandTotal"></td>
+                </tr>
+            </table>
+        </div>
+
+        <!-- Summary Section -->
+        <div class="summary-section">
+            <h3>निक्षेप</h3>
+            <table>
+                <tr>
+                    <td>बचत:</td>
+                    <td><input type="number" id="savingsTotal" readonly></td>
+                </tr>
+                <tr>
+                    <td>ऋण:</td>
+                    <td><input type="number" id="loanTotal" readonly></td>
+                </tr>
+                <tr>
+                    <td>अन्य:</td>
+                    <td><input type="number" id="otherTotal"></td>
+                </tr>
+                <tr>
+                    <td>जम्मा:</td>
+                    <td><input type="number" id="finalTotal" readonly></td>
+                </tr>
+            </table>
+        </div>
+
+        <!-- Signature Section -->
+        <div class="signature-section">
+            <div>
+                <p>बजार प्रतिनिधिको नाम: _______________</p>
+                <p>सही: _______________</p>
+                <p>मिति: _______________</p>
+            </div>
+            <div>
+                <p>रकम बुझिलिने: _______________</p>
+                <p>प्रमाणित गर्ने: _______________</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="no-print">
+        <button onclick="addRow()">Add New Row</button>
+        <button onclick="addWithdrawalRow()">Add Withdrawal Row</button>
+        <button onclick="window.print()">Print</button>
+        <button onclick="saveData()">Save Data</button>
+    </div>
+
+
+    <script>
+        let formChanged = false;
+        let allowLeave = false;
+        
+        function setFormChanged(changed) {
+            formChanged = changed;
+        }
+        
+        function addRow() {
+            const tbody = document.querySelector('#financeTable tbody');
+            const rowCount = tbody.children.length;
+            const newRow = document.createElement('tr');
+            
+            newRow.innerHTML = `
+                <td class='number'>${rowCount + 1}</td>
+                <td><input type="text" class="accountHolder" onchange="setFormChanged(true)"></td>
+                <td><input type="text" class="accountNumber" onchange="setFormChanged(true)"></td>
+                <td><input type="number" class="previousBalance" onchange="calculateRowTotal(this); setFormChanged(true)"></td>
+                <td><input type="number" class="todayDeposit" onchange="calculateRowTotal(this); setFormChanged(true)"></td>
+                <td><input type="number" class="loanPayment" onchange="calculateRowTotal(this); setFormChanged(true)"></td>
+                <td><input type="number" class="totalAmount" readonly></td>
+            `;
+            
+            tbody.appendChild(newRow);
+            setFormChanged(true);
+            updateSummary();
+        }
+        
+        function addWithdrawalRow() {
+            const tbody = document.querySelector('#withdrawalTable');
+            const newRow = document.createElement('tr');
+            
+            newRow.innerHTML = `
+                <td><input type="text" onchange="setFormChanged(true)"></td>
+                <td><input type="text" onchange="setFormChanged(true)"></td>
+                <td><input type="number" onchange="setFormChanged(true); updateSummary()"></td>
+                <td><input type="number" onchange="setFormChanged(true)"></td>
+                <td><input type="text" onchange="setFormChanged(true)"></td>
+            `;
+            
+            tbody.appendChild(newRow);
+            setFormChanged(true);
+        }
+        
+        function calculateRowTotal(input) {
+            const row = input.closest('tr');
+            const prev = parseFloat(row.querySelector('.previousBalance').value) || 0;
+            const today = parseFloat(row.querySelector('.todayDeposit').value) || 0;
+            const loan = parseFloat(row.querySelector('.loanPayment').value) || 0;
+            
+            row.querySelector('.totalAmount').value = (prev + today + loan).toFixed(2);
+            updateSummary();
+        }
+        
+        function calculateDenominationTotal() {
+            let total = 0;
+            document.querySelectorAll('.denomination').forEach(input => {
+                const value = parseInt(input.dataset.value);
+                const count = parseInt(input.value) || 0;
+                const rowTotal = value * count;
+                input.closest('tr').querySelector('.denomination-total').textContent = rowTotal;
+                total += rowTotal;
+            });
+            document.getElementById('grandTotal').textContent = total.toFixed(2);
+            updateFinalTotal();
+        }
+        
+        function updateSummary() {
+            let savingsTotal = 0;
+            let loanTotal = 0;
+        
+            // Calculate savings total (today's deposits)
+            document.querySelectorAll('.todayDeposit').forEach(input => {
+                savingsTotal += parseFloat(input.value) || 0;
+            });
+        
+            // Calculate loan total
+            document.querySelectorAll('.loanPayment').forEach(input => {
+                loanTotal += parseFloat(input.value) || 0;
+            });
+        
+            // Subtract withdrawals from savings
+            document.querySelectorAll('#withdrawalTable input[type="number"]:nth-child(1)').forEach(input => {
+                savingsTotal -= parseFloat(input.value) || 0;
+            });
+        
+            document.getElementById('savingsTotal').value = savingsTotal.toFixed(2);
+            document.getElementById('loanTotal').value = loanTotal.toFixed(2);
+            updateFinalTotal();
+        }
+        
+        function updateFinalTotal() {
+            const savings = parseFloat(document.getElementById('savingsTotal').value) || 0;
+            const loan = parseFloat(document.getElementById('loanTotal').value) || 0;
+            const other = parseFloat(document.getElementById('otherTotal').value) || 0;
+            
+            const finalTotal = savings + loan + other;
+            document.getElementById('finalTotal').value = finalTotal.toFixed(2);
+        
+            // Verify against denomination total
+            const denominationTotal = parseFloat(document.getElementById('grandTotal').textContent) || 0;
+            if (denominationTotal !== finalTotal) {
+                document.getElementById('finalTotal').style.color = 'red';
+            } else {
+                document.getElementById('finalTotal').style.color = 'black';
+            }
+        }
+        
+        function saveData() {
+            // Here you would typically implement the actual save functionality
+            const formData = {
+                date: document.getElementById('date').value,
+                sector: document.getElementById('sector').value,
+                representative: document.getElementById('representative').value,
+                totalMembers: document.getElementById('totalMembers').value,
+                transactions: [],
+                withdrawals: [],
+                denominations: {},
+                summary: {
+                    savings: document.getElementById('savingsTotal').value,
+                    loan: document.getElementById('loanTotal').value,
+                    other: document.getElementById('otherTotal').value,
+                    total: document.getElementById('finalTotal').value
+                }
+            };
+        
+            // Collect transaction data
+            document.querySelectorAll('#financeTable tbody tr').forEach(row => {
+                formData.transactions.push({
+                    accountHolder: row.querySelector('.accountHolder').value,
+                    accountNumber: row.querySelector('.accountNumber').value,
+                    previousBalance: row.querySelector('.previousBalance').value,
+                    todayDeposit: row.querySelector('.todayDeposit').value,
+                    loanPayment: row.querySelector('.loanPayment').value,
+                    totalAmount: row.querySelector('.totalAmount').value
+                });
+            });
+        
+            // Collect withdrawal data
+            document.querySelectorAll('#withdrawalTable tr').forEach(row => {
+                const inputs = row.querySelectorAll('input');
+                if (inputs.length === 5) {
+                    formData.withdrawals.push({
+                        accountHolder: inputs[0].value,
+                        accountNumber: inputs[1].value,
+                        withdrawalAmount: inputs[2].value,
+                        remainingBalance: inputs[3].value,
+                        mobileNumber: inputs[4].value
+                    });
+                }
+            });
+        
+            // Collect denomination data
+            document.querySelectorAll('.denomination').forEach(input => {
+                formData.denominations[input.dataset.value] = input.value;
+            });
+        
+            // In a real application, you would send this data to a server
+            console.log('Form Data:', formData);
+            setFormChanged(false);
+            alert('Data saved successfully!');
+        }
+        
+        function handleStay() {
+            document.getElementById('alertOverlay').style.display = 'none';
+        }
+        
+        function handleLeave() {
+            allowLeave = true;
+            document.getElementById('alertOverlay').style.display = 'none';
+            window.location.reload();
+        }
+        
+        // Add warning for page reload and close
+        window.onbeforeunload = function(e) {
+            if (formChanged && !allowLeave) {
+                document.getElementById('alertOverlay').style.display = 'block';
+                e.preventDefault();
+                e.returnValue = '';
+                return '';
+            }
+        };
+        
+        // Handle browser's back button
+        window.onpopstate = function(e) {
+            if (formChanged && !allowLeave) {
+                document.getElementById('alertOverlay').style.display = 'block';
+                e.preventDefault();
+                return '';
+            }
+        };
+        
+        // Initialize form
+        document.addEventListener('DOMContentLoaded', function() {
+            addRow();
+            
+            // Add event listeners for real-time updates
+            document.getElementById('otherTotal').addEventListener('input', updateFinalTotal);
+            document.querySelectorAll('.denomination').forEach(input => {
+                input.addEventListener('input', calculateDenominationTotal);
+            });
+        });
+    </script>
