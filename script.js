@@ -4,6 +4,15 @@ function setFormChanged(changed) {
     formChanged = changed;
 }
 
+// Show confirmation message when trying to refresh or close the tab
+window.addEventListener('beforeunload', function (e) {
+    if (formChanged) {
+        var confirmationMessage = "Are you sure you want to leave this page? You have unsaved changes.";
+        e.returnValue = confirmationMessage; // Standard for most browsers
+        return confirmationMessage; // For older browsers
+    }
+});
+
 function addRow() {
     const tbody = document.querySelector('#financeTable tbody');
     const rowCount = tbody.children.length;
@@ -123,23 +132,23 @@ function updateFinalTotal() {
     }
 }
 
-    function saveData() {
-        // Here you would typically implement the actual save functionality
-        const formData = {
-            date: document.getElementById('date').value,
-            sector: document.getElementById('sector').value,
-            representative: document.getElementById('representative').value,
-            totalMembers: document.getElementById('totalMembers').value,
-            transactions: [],
-            withdrawals: [],
-            denominations: {},
-            summary: {
-                savings: document.getElementById('savingsTotal').value,
-                loan: document.getElementById('loanTotal').value,
-                other: document.getElementById('otherTotal').value,
-                total: document.getElementById('finalTotal').value
-            }
-        };
+function saveData() {
+    // Here you would typically implement the actual save functionality
+    const formData = {
+        date: document.getElementById('date').value,
+        sector: document.getElementById('sector').value,
+        representative: document.getElementById('representative').value,
+        totalMembers: document.getElementById('totalMembers').value,
+        transactions: [],
+        withdrawals: [],
+        denominations: {},
+        summary: {
+            savings: document.getElementById('savingsTotal').value,
+            loan: document.getElementById('loanTotal').value,
+            other: document.getElementById('otherTotal').value,
+            total: document.getElementById('finalTotal').value
+        }
+    };
 
     // Collect transaction data
     document.querySelectorAll('#financeTable tbody tr').forEach(row => {
@@ -197,4 +206,3 @@ function validateBeforePrint() {
     }
     window.print();
 }
-    
