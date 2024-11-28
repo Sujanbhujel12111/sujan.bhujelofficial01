@@ -46,7 +46,7 @@ body {
     gap:10px;
 }
 .sn{
-    width: 100%;
+    width: 25px;
 }
 label {
     white-space: nowrap; /* Prevent label text from wrapping */
