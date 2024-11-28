@@ -45,7 +45,7 @@ body {
     align-items: center;
     gap:10px;
 }
-.sn{
+thead tr .sn{
     width: 25px;
 }
 label {
