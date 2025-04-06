@@ -1,0 +1,897 @@
+{% extends 'restaurant/base.html' %}
+{% load custom_filters %}
+
+{% block title %}Order Details{% endblock %}
+
+{% block content %}
+<div class="container mx-auto mt-10">
+    <h1 class="text-4xl font-bold mb-8">Order Details</h1>
+    <div class="bg-white p-6 rounded-lg shadow">
+        <!-- Basic Order Info -->
+        <div class="mb-6">
+            <p class="text-lg">Order #{{ order.order_id }}</p>
+            <p>Customer: {{ order.customer_name }}</p>
+            <p>Phone: {{ order.customer_phone }}</p>
+            
+            <!-- Order Type Specific Information -->
+            {% if order.table %}
+                <p>Order Type: Table #{{ order.table.number }}</p>
+            {% elif order.order_type == 'delivery' %}
+                <div class="mt-4 p-4 bg-blue-50 rounded-lg">
+                    <h3 class="font-semibold mb-2">Delivery Information</h3>
+                    <p>Address: {{ order.delivery_address }}</p>
+                    <p>Delivery Charge: Rs.{{ order.delivery_charge }}</p>
+                </div>
+            {% elif order.order_type == 'takeaway' %}
+                <p>Order Type: Takeaway</p>
+            {% else %}
+                <p>Order Type: {{ order.order_type|capfirst }}</p>
+            {% endif %}
+
+            {% if order.special_notes %}
+            <div class="mt-4">
+                <h3 class="font-semibold">Special Notes:</h3>
+                <p>{{ order.special_notes }}</p>
+            </div>
+            {% endif %}
+        </div>
+
+
+        <!-- Order Items Section -->
+        <div class="mb-6">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-2xl font-semibold">Order Items</h2>
+                <button onclick="openAddItemModal()" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">
+                    Add Item
+                </button>
+            </div>
+            
+            <table class="min-w-full bg-white border border-gray-200 rounded-lg" id="order-items-table">
+                <thead>
+                    <tr class="bg-gray-100">
+                        <th class="py-2 px-4 border-b">Item</th>
+                        <th class="py-2 px-4 border-b">Quantity</th>
+                        <th class="py-2 px-4 border-b">Price</th>
+                        <th class="py-2 px-4 border-b">Total</th>
+                        <th class="py-2 px-4 border-b">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for order_item in order.items.all %}
+                    <tr class="hover:bg-gray-50" id="item-row-{{ order_item.id }}">
+                        <td class="py-2 px-4 border-b">{{ order_item.item.name }}</td>
+                        <td class="py-2 px-4 border-b">
+                            <input type="number" 
+                                   value="{{ order_item.quantity }}" 
+                                   min="1" 
+                                   class="w-20 px-2 py-1 border rounded"
+                                   readonly>
+                        </td>
+                        <td class="py-2 px-4 border-b">Rs.{{ order_item.item.price }}</td>
+                        <td class="py-2 px-4 border-b">Rs.{{ order_item.quantity|multiply:order_item.item.price }}</td>
+                        <td class="py-2 px-4 border-b">
+                            <button onclick="removeOrderItem({{ order_item.id }})" 
+                                    class="text-red-500 hover:text-red-700">
+                                Remove
+                            </button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Add Item Modal -->
+        <div id="add-item-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center">
+            <div class="bg-white p-6 rounded-lg w-96">
+                <h3 class="text-xl font-bold mb-4">Add Item</h3>
+                <div class="mb-4">
+                    <label class="block mb-2">Category</label>
+                    <select id="category-filter" class="w-full p-2 border rounded" onchange="filterMenuItems()">
+                        <option value="">All Categories</option>
+                        {% for category in categories %}
+                            <option value="{{ category.id }}">{{ category.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="mb-4">
+                    <label class="block mb-2">Item</label>
+                    <select id="menu-item" class="w-full p-2 border rounded">
+                        {% for item in menu_items %}
+                            <option value="{{ item.id }}" data-category="{{ item.category.id }}" data-price="{{ item.price }}">
+                                {{ item.name }} - Rs.{{ item.price }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="mb-4">
+                    <label class="block mb-2">Quantity</label>
+                    <input type="number" id="item-quantity" value="1" min="1" class="w-full p-2 border rounded">
+                </div>
+                <div class="flex justify-end space-x-2">
+                    <button onclick="closeAddItemModal()" class="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400">
+                        Cancel
+                    </button>
+                    <button onclick="addItemToOrder()" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
+                        Add
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="mt-4">
+            <p class="text-xl font-bold">Subtotal: Rs.{{ order.total_amount }}</p>
+            {% if order.order_type == 'delivery' %}
+                <p class="text-xl">Delivery Charge: Rs.{{ order.delivery_charge }}</p>
+                <p class="text-xl font-bold">Total Amount: Rs.{{ order.total_amount|add:order.delivery_charge }}</p>
+            {% else %}
+                <p class="text-xl font-bold">Total Amount: Rs.{{ order.total_amount }}</p>
+            {% endif %}
+            <p class="text-xl font-bold">Remaining Amount: Rs.<span id="remaining-amount">{{ order.total_amount }}</span></p>
+        </div>
+
+        <div class="mt-4">
+            <h2 class="text-2xl font-semibold mb-4">Settled Payments</h2>
+            <table class="min-w-full bg-white border border-gray-200 rounded-lg">
+                <thead>
+                    <tr class="bg-gray-100">
+                        <th class="py-2 px-4 border-b">Payment Method</th>
+                        <th class="py-2 px-4 border-b">Amount</th>
+                        <th class="py-2 px-4 border-b">Transaction ID</th>
+                        <th class="py-2 px-4 border-b">Date Edited</th>
+                        <th class="py-2 px-4 border-b">Edited By</th>
+                        <th class="py-2 px-4 border-b">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="settled-payments">
+                    {% for payment in order.payments.all %}
+                    <tr id="payment-{{ payment.id }}">
+                        <td class="payment-method">{{ payment.payment_method|capfirst }}</td>
+                        <td class="payment-amount">Rs.{{ payment.amount }}</td>
+                        <td class="payment-transaction-id">{{ payment.transaction_id }}</td>
+                        <td class="payment-date-edited">{{ payment.date_edited }}</td>
+                        <td class="payment-edited-by">{{ payment.edited_by.username }}</td>
+                        <td>
+                            <button onclick="editPayment({{ payment.id }})" class="text-blue-500">Edit</button>
+                            <button onclick="savePayment({{ payment.id }})" class="text-green-500 hidden">Save</button>
+                            <button onclick="deletePayment({{ payment.id }})" class="text-red-500">Delete</button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <div class="mt-4">
+            <h2 class="text-2xl font-semibold mb-4">Add Payment</h2>
+            <form method="post" action="{% url 'restaurant:process_payment' pk=order.id %}">
+                {% csrf_token %}
+                <div id="payment-forms">
+                    <div class="payment-form">
+                        <select name="payment_method" class="py-2 px-4 border rounded">
+                            {% for method in payment_methods %}
+                                <option value="{{ method.0 }}">{{ method.1 }}</option>
+                            {% endfor %}
+                        </select>
+                        <input type="number" name="amount" step="0.01" class="py-2 px-4 border rounded" placeholder="Amount" oninput="updateRemainingAmount()">
+                        <input type="text" name="transaction_id" class="py-2 px-4 border rounded" placeholder="Transaction ID (optional)">
+                    </div>
+                </div>
+                <button type="button" onclick="addPaymentForm()" class="py-2 px-4 bg-blue-500 text-white rounded hover:bg-blue-600 mt-2">Add Another Payment</button>
+                <button type="submit" class="py-2 px-4 bg-green-500 text-white rounded hover:bg-green-600 mt-2">Settle Payment</button>
+            </form>
+        </div>
+
+
+
+
+
+        <!-- Print Buttons -->
+        <div class="flex justify-end space-x-4 mt-6">
+            <button onclick="openPrintPreview('kot')" class="py-2 px-4 bg-blue-500 text-white rounded hover:bg-blue-600">
+                Print KOT
+            </button>
+            <button onclick="openPrintPreview('bill')" class="py-2 px-4 bg-green-500 text-white rounded hover:bg-green-600">
+                Print Bill
+            </button>
+        </div>
+
+
+<!-- Print Preview Modal -->
+<div id="printPreviewModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50">
+    <div class="fixed inset-10 bg-white rounded-lg shadow-xl flex flex-col">
+        <div class="p-4 border-b flex justify-between items-center">
+            <h2 class="text-2xl font-bold" id="previewTitle">Print Preview</h2>
+            <div class="space-x-2">
+                <button onclick="printDocument()" class="py-2 px-4 bg-blue-500 text-white rounded hover:bg-blue-600">
+                    Print
+                </button>
+                <button onclick="downloadPDF()" class="py-2 px-4 bg-green-500 text-white rounded hover:bg-green-600">
+                    Download PDF
+                </button>
+                <button onclick="closePreview()" class="py-2 px-4 bg-gray-500 text-white rounded hover:bg-gray-600">
+                    Close
+                </button>
+            </div>
+        </div>
+        <div id="previewContent" class="flex-1 p-4 overflow-auto bg-gray-100">
+            <div class="preview-container bg-white shadow-lg mx-auto p-8"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Print Templates -->
+<div id="kotTemplate" class="hidden">
+    <div class="print-wrapper">
+        <div class="text-center receipt-content">
+            <h1 class="receipt-title">KITCHEN ORDER TICKET</h1>
+            <div class="receipt-header">
+                <p>Order #{{ order.order_id }}</p>
+                <p>Date: {{ order.created_at|date:"d/m/Y H:i" }}</p>
+                {% if order.table %}
+                    <p>Table #{{ order.table.number }}</p>
+                {% else %}
+                    <p>{{ order.order_type|title }}</p>
+                {% endif %}
+            </div>
+            
+            <table class="receipt-table">
+                <thead>
+                    <tr>
+                        <th class="item-col">Item</th>
+                        <th class="qty-col">Qty</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for order_item in order.items.all %}
+                    <tr>
+                        <td class="item-name">{{ order_item.item.name }}</td>
+                        <td class="item-qty">{{ order_item.quantity }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            
+            {% if order.special_notes %}
+            <div class="special-notes">
+                <strong>Special Notes:</strong>
+                <p>{{ order.special_notes }}</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<div id="billTemplate" class="hidden">
+    <div class="print-wrapper">
+        <div class="text-center receipt-content">
+            <h1 class="receipt-title">RESTAURANT NAME</h1>
+            <div class="receipt-header">
+                <p>Address Line 1</p>
+                <p>Address Line 2</p>
+                <p>Phone: XXX-XXX-XXXX</p>
+                <hr class="receipt-divider">
+                <p>Bill #{{ order.order_id }}</p>
+                <p>Date: {{ order.created_at|date:"d/m/Y H:i" }}</p>
+                {% if order.table %}
+                    <p>Order Type: Table #{{ order.table.number }}</p>
+                {% elif order.order_type == 'delivery' %}
+                    <p>Delivery Order</p>
+                    <p>Address: {{ order.delivery_address }}</p>
+                {% else %}
+                    <p>{{ order.order_type|title }}</p>
+                {% endif %}
+                <p>Customer: {{ order.customer_name }}</p>
+                <p>Phone: {{ order.customer_phone }}</p>
+            </div>
+            
+            <table class="receipt-table">
+                <thead>
+                    <tr>
+                        <th class="item-col">Item</th>
+                        <th class="qty-col">Qty</th>
+                        <th class="price-col">Price</th>
+                        <th class="total-col">Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for order_item in order.items.all %}
+                    <tr>
+                        <td class="item-name">{{ order_item.item.name }}</td>
+                        <td class="item-qty">{{ order_item.quantity }}</td>
+                        <td class="item-price">Rs.{{ order_item.item.price }}</td>
+                        <td class="item-total">Rs.{{ order_item.quantity|multiply:order_item.item.price }}</td>
+                    </tr>
+                    {% endfor %}
+                    <tr class="total-row">
+                        <td colspan="3" class="text-right">Subtotal:</td>
+                        <td class="item-total">Rs.{{ order.total_amount }}</td>
+                    </tr>
+                    {% if order.order_type == 'delivery' %}
+                    <tr>
+                        <td colspan="3" class="text-right">Delivery Charge:</td>
+                        <td class="item-total">Rs.{{ order.delivery_charge }}</td>
+                    </tr>
+                    <tr class="total-row">
+                        <td colspan="3" class="text-right">Total:</td>
+                        <td class="item-total">Rs.{{ order.total_amount|add:order.delivery_charge }}</td>
+                    </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+            
+            <div class="payment-details">
+                <p class="font-bold">Payment Details:</p>
+                {% for payment in order.payments.all %}
+                <p>{{ payment.payment_method|capfirst }}: Rs.{{ payment.amount }}</p>
+                {% endfor %}
+            </div>
+            
+            <div class="receipt-footer">
+                <p class="font-bold">Thank you for visiting!</p>
+                <p>Please visit again</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<style>
+    @media print {
+        body * {
+            visibility: hidden;
+        }
+        .preview-container, .preview-container * {
+            visibility: visible;
+        }
+        .preview-container {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 80mm !important;
+            margin: 0 !important;
+            padding: 0 !important;
+        }
+    }
+
+    .print-wrapper {
+        width: 80mm;
+        margin: 0 auto;
+        background: white;
+        padding: 8px;
+    }
+
+    .receipt-content {
+        font-family: 'Courier New', monospace;
+        font-size: 12px;
+        line-height: 1.2;
+    }
+
+    .receipt-title {
+        font-size: 14px;
+        font-weight: bold;
+        margin-bottom: 10px;
+    }
+
+    .receipt-header {
+        margin-bottom: 15px;
+    }
+
+    .receipt-header p {
+        margin: 3px 0;
+    }
+
+    .receipt-divider {
+        border-top: 1px dashed #000;
+        margin: 10px 0;
+    }
+
+    .receipt-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 10px 0;
+    }
+
+    .receipt-table th,
+    .receipt-table td {
+        padding: 3px;
+        text-align: left;
+    }
+
+    .item-col { width: 50%; }
+    .qty-col { width: 15%; text-align: right; }
+    .price-col { width: 17%; text-align: right; }
+    .total-col { width: 18%; text-align: right; }
+
+    .item-name { text-align: left; }
+    .item-qty { text-align: right; }
+    .item-price { text-align: right; }
+    .item-total { text-align: right; }
+
+    .total-row {
+        border-top: 1px dashed #000;
+        font-weight: bold;
+    }
+
+    .payment-details {
+        margin: 15px 0;
+        text-align: left;
+    }
+
+    .special-notes {
+        margin: 15px 0;
+        text-align: left;
+        border-top: 1px dashed #000;
+        padding-top: 10px;
+    }
+
+    .receipt-footer {
+        margin-top: 20px;
+        border-top: 1px dashed #000;
+        padding-top: 10px;
+    }
+</style>
+
+
+
+
+
+
+        <div class="mt-4 flex space-x-4">
+            {% if order.status != 'completed' %}
+                <a href="{% url 'restaurant:close_order' pk=order.id %}" class="py-2 px-4 bg-blue-500 text-white rounded hover:bg-blue-600">Close Order</a>
+            {% endif %}
+            <a href="{% url 'restaurant:order_list' %}" class="py-2 px-4 bg-gray-500 text-white rounded hover:bg-gray-600">Back to Orders</a>
+        </div>
+    </div>
+</div>
+
+
+
+
+
+<script>
+
+
+    const csrf_token = '{{ csrf_token }}';
+    const orderId = '{{ order.order_id }}';
+
+// Payment Management Functions
+function addPaymentForm() {
+    const paymentForms = document.getElementById('payment-forms');
+    const newPaymentForm = document.createElement('div');
+    newPaymentForm.classList.add('payment-form', 'mt-2');
+    newPaymentForm.innerHTML = `
+        <select name="payment_method" class="py-2 px-4 border rounded">
+            {% for method in payment_methods %}
+                <option value="{{ method.0 }}">{{ method.1 }}</option>
+            {% endfor %}
+        </select>
+        <input type="number" name="amount" step="0.01" class="py-2 px-4 border rounded ml-2" 
+               placeholder="Amount" oninput="updateRemainingAmount()">
+        <input type="text" name="transaction_id" class="py-2 px-4 border rounded ml-2" 
+               placeholder="Transaction ID (optional)">
+    `;
+    paymentForms.appendChild(newPaymentForm);
+}
+
+function updateRemainingAmount() {
+    const totalAmount = {% if order.order_type == 'delivery' %}
+        parseFloat("{{ order.total_amount|add:order.delivery_charge|floatformat:2|escapejs }}")
+    {% else %}
+        parseFloat("{{ order.total_amount|floatformat:2|escapejs }}")
+    {% endif %};
+    
+    let enteredAmount = 0;
+    const amountInputs = document.querySelectorAll('input[name="amount"]');
+    amountInputs.forEach(input => {
+        enteredAmount += parseFloat(input.value) || 0;
+    });
+
+    let settledAmount = 0;
+    document.querySelectorAll('.payment-amount').forEach(element => {
+        settledAmount += parseFloat(element.innerText.replace('Rs.', '')) || 0;
+    });
+
+    const remainingAmount = totalAmount - enteredAmount - settledAmount;
+    document.getElementById('remaining-amount').innerText = remainingAmount.toFixed(2);
+}
+
+function editPayment(id) {
+    const paymentItem = document.getElementById(`payment-${id}`);
+    const paymentMethod = paymentItem.querySelector('.payment-method').innerText;
+    const amount = paymentItem.querySelector('.payment-amount').innerText.replace('Rs.', '');
+    const transactionId = paymentItem.querySelector('.payment-transaction-id').innerText;
+
+    paymentItem.querySelector('.payment-method').innerHTML = `
+        <select class="py-2 px-4 border rounded">
+            {% for method in payment_methods %}
+                <option value="{{ method.0 }}" ${paymentMethod === '{{ method.1 }}' ? 'selected' : ''}>
+                    {{ method.1 }}
+                </option>
+            {% endfor %}
+        </select>
+    `;
+    paymentItem.querySelector('.payment-amount').innerHTML = 
+        `<input type="number" value="${amount}" class="py-2 px-4 border rounded">`;
+    paymentItem.querySelector('.payment-transaction-id').innerHTML = 
+        `<input type="text" value="${transactionId}" class="py-2 px-4 border rounded">`;
+
+    paymentItem.querySelector('.text-blue-500').classList.add('hidden');
+    paymentItem.querySelector('.text-green-500').classList.remove('hidden');
+}
+
+function savePayment(id) {
+    const paymentItem = document.getElementById(`payment-${id}`);
+    const paymentMethod = paymentItem.querySelector('.payment-method select').value;
+    const amount = paymentItem.querySelector('.payment-amount input').value;
+    const transactionId = paymentItem.querySelector('.payment-transaction-id input').value;
+
+    fetch(`/restaurant/payment/${id}/edit/`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token }}'
+        },
+        body: JSON.stringify({
+            payment_method: paymentMethod,
+            amount: amount,
+            transaction_id: transactionId
+        }),
+    }).then(response => {
+        if (response.ok) {
+            paymentItem.querySelector('.payment-method').innerText = paymentMethod;
+            paymentItem.querySelector('.payment-amount').innerText = `Rs.${amount}`;
+            paymentItem.querySelector('.payment-transaction-id').innerText = transactionId;
+            paymentItem.querySelector('.payment-date-edited').innerText = new Date().toLocaleString();
+            paymentItem.querySelector('.payment-edited-by').innerText = '{{ request.user.username }}';
+
+            paymentItem.querySelector('.text-blue-500').classList.remove('hidden');
+            paymentItem.querySelector('.text-green-500').classList.add('hidden');
+
+            updateRemainingAmount();
+        }
+    });
+}
+
+function deletePayment(id) {
+    if (confirm('Are you sure you want to delete this payment?')) {
+        fetch(`/restaurant/payment/${id}/delete/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+        }).then(response => {
+            if (response.ok) {
+                const paymentItem = document.getElementById(`payment-${id}`);
+                paymentItem.remove();
+                updateRemainingAmount();
+            }
+        });
+    }
+}
+
+
+// Order Item Management Functions
+function openAddItemModal() {
+    document.getElementById('add-item-modal').classList.remove('hidden');
+    document.getElementById('add-item-modal').classList.add('flex');
+    filterMenuItems(); // Initialize filtered items
+}
+
+function closeAddItemModal() {
+    document.getElementById('add-item-modal').classList.add('hidden');
+    document.getElementById('add-item-modal').classList.remove('flex');
+    // Reset form
+    document.getElementById('category-filter').value = '';
+    document.getElementById('item-quantity').value = 1;
+}
+
+function filterMenuItems() {
+    const categoryId = document.getElementById('category-filter').value;
+    const menuItems = document.getElementById('menu-item').options;
+    
+    for (let item of menuItems) {
+        if (!categoryId || item.dataset.category === categoryId) {
+            item.hidden = false;
+        } else {
+            item.hidden = true;
+        }
+    }
+}
+
+function calculateTotal(baseTotal, deliveryCharge = 0) {
+    return parseFloat(baseTotal) + parseFloat(deliveryCharge);
+}
+
+function updateDisplayTotals(subtotal, deliveryCharge = 0) {
+    const total = calculateTotal(subtotal, deliveryCharge);
+    
+    // Update all relevant displays
+    document.querySelectorAll('.text-xl.font-bold').forEach(el => {
+        if (el.textContent.includes('Subtotal:')) {
+            el.textContent = `Subtotal: Rs.${parseFloat(subtotal).toFixed(2)}`;
+        }
+        if (el.textContent.includes('Total Amount:')) {
+            el.textContent = `Total Amount: Rs.${total.toFixed(2)}`;
+        }
+    });
+    
+    updateRemainingAmount();
+}
+
+function updateRemainingAmount() {
+    // Get total amount
+    const totalAmountElement = Array.from(document.querySelectorAll('.text-xl.font-bold'))
+        .find(el => el.textContent.includes('Total Amount:'));
+    const totalAmount = parseFloat(totalAmountElement.textContent.split('Rs.')[1]);
+    
+    // Calculate settled payments
+    let settledAmount = 0;
+    document.querySelectorAll('.payment-amount').forEach(element => {
+        const amount = parseFloat(element.textContent.replace('Rs.', '')) || 0;
+        settledAmount += amount;
+    });
+    
+    // Calculate pending payments
+    let pendingAmount = 0;
+    const amountInputs = document.querySelectorAll('input[name="amount"]');
+    amountInputs.forEach(input => {
+        pendingAmount += parseFloat(input.value) || 0;
+    });
+    
+    // Update remaining amount display
+    const remainingAmount = totalAmount - settledAmount - pendingAmount;
+    document.getElementById('remaining-amount').textContent = remainingAmount.toFixed(2);
+    
+    // Highlight negative remaining amount in red
+    const remainingElement = document.getElementById('remaining-amount').parentElement;
+    if (remainingAmount < 0) {
+        remainingElement.classList.add('text-red-500');
+    } else {
+        remainingElement.classList.remove('text-red-500');
+    }
+}
+
+
+function addItemToOrder() {
+    const menuItemSelect = document.getElementById('menu-item');
+    const selectedOption = menuItemSelect.options[menuItemSelect.selectedIndex];
+    const quantity = parseInt(document.getElementById('item-quantity').value);
+    const itemId = menuItemSelect.value;
+    
+    if (!itemId || !quantity || quantity < 1) {
+        alert('Please select an item and enter a valid quantity');
+        return;
+    }
+
+    // Log the request details for debugging
+    console.log('Sending request:', {
+        itemId,
+        quantity,
+        orderId
+    });
+
+    fetch(`/restaurant/order/${orderId}/add_item/`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrf_token
+        },
+        body: JSON.stringify({
+            item_id: parseInt(itemId), // Ensure item_id is sent as a number
+            quantity: quantity
+        })
+    })
+    .then(response => {
+        if (!response.ok) {
+            return response.json().then(data => {
+                throw new Error(data.message || 'Failed to add item');
+            });
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.status === 'success') {
+            const tbody = document.querySelector('#order-items-table tbody');
+            const existingRow = document.getElementById(`item-row-${data.item_html.item_id}`);
+            
+            if (existingRow) {
+                existingRow.querySelector('input[type="number"]').value = data.item_html.quantity;
+                existingRow.querySelector('td:nth-child(4)').textContent = `Rs.${data.item_html.total}`;
+            } else {
+                const newRow = document.createElement('tr');
+                newRow.id = `item-row-${data.item_html.item_id}`;
+                newRow.className = 'hover:bg-gray-50';
+                newRow.innerHTML = `
+                    <td class="py-2 px-4 border-b">${data.item_html.name}</td>
+                    <td class="py-2 px-4 border-b">
+                        <input type="number" 
+                               value="${data.item_html.quantity}" 
+                               min="1" 
+                               class="w-20 px-2 py-1 border rounded"
+                               onchange="updateItemQuantity(${data.item_html.item_id}, this.value)">
+                    </td>
+                    <td class="py-2 px-4 border-b">Rs.${data.item_html.price}</td>
+                    <td class="py-2 px-4 border-b">Rs.${data.item_html.total}</td>
+                    <td class="py-2 px-4 border-b">
+                        <button onclick="removeOrderItem(${data.item_html.item_id})" 
+                                class="text-red-500 hover:text-red-700">
+                            Remove
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(newRow);
+            }
+            
+            updateDisplayTotals(data.new_total);
+            closeAddItemModal();
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert(error.message || 'Error adding item. Please try again.');
+    });
+}   
+
+
+function updateItemQuantity(itemId, newQuantity) {
+    if (newQuantity < 1) {
+        alert('Quantity must be at least 1');
+        return;
+    }
+
+    fetch(`/restaurant/order/${orderId}/add_item/`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrf_token
+        },
+        body: JSON.stringify({
+            item_id: itemId,
+            quantity: newQuantity,
+            update: true
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === 'success') {
+            const row = document.getElementById(`item-row-${itemId}`);
+            row.querySelector('td:nth-child(4)').textContent = `Rs.${data.item_html.total}`;
+            updateDisplayTotals(data.new_total);
+        } else {
+            alert('Error: ' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error updating quantity');
+    });
+}
+
+function removeOrderItem(itemId) {
+    if (!confirm('Are you sure you want to remove this item?')) {
+        return;
+    }
+
+    fetch(`/restaurant/order/${orderId}/remove_item/${itemId}/`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrf_token
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === 'success') {
+            const row = document.getElementById(`item-row-${itemId}`);
+            row.remove();
+            updateDisplayTotals(data.new_total);
+        } else {
+            alert('Error: ' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error removing item');
+    });
+}
+
+// Initialize event listeners
+document.addEventListener('DOMContentLoaded', function() {
+    // Close modal when clicking outside
+    document.getElementById('add-item-modal').addEventListener('click', function(e) {
+        if (e.target === this) {
+            closeAddItemModal();
+        }
+    });
+
+    // Initialize any existing amounts
+    updateRemainingAmount();
+});
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+function openPrintPreview(type) {
+        const modal = document.getElementById('printPreviewModal');
+        const container = modal.querySelector('.preview-container');
+        const template = document.getElementById(`${type}Template`);
+        
+        document.getElementById('previewTitle').textContent = type === 'kot' ? 'KOT Preview' : 'Bill Preview';
+        container.innerHTML = template.innerHTML;
+        modal.classList.remove('hidden');
+    }
+
+    function closePreview() {
+        document.getElementById('printPreviewModal').classList.add('hidden');
+    }
+
+    function printDocument() {
+        window.print();
+    }
+
+    function downloadPDF() {
+        const content = document.querySelector('.preview-container').innerHTML;
+        const style = document.querySelector('style').innerHTML;
+        
+        const html = `
+            <html>
+                <head>
+                    <style>
+                        ${style}
+                        body {
+                            width: 80mm;
+                            margin: 0;
+                            padding: 0;
+                        }
+                    </style>
+                </head>
+                <body>
+                    ${content}
+                </body>
+            </html>
+        `;
+
+        const blob = new Blob([html], { type: 'application/pdf' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'order-document.pdf';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+    }
+
+    document.getElementById('printPreviewModal').addEventListener('click', function(e) {
+        if (e.target === this) {
+            closePreview();
+        }
+    });
+
+
+
+
+
+
+
+
+</script>
+
+
+{% endblock %}

@@ -1,0 +1,47 @@
+{% extends 'restaurant/base.html' %}
+
+{% block title %}Kitchen - Orders In Progress{% endblock %}
+
+{% block content %}
+<div class="container mx-auto mt-10">
+    <h1 class="text-4xl font-bold mb-8">Kitchen - Orders In Progress</h1>
+    <div class="bg-white p-6 rounded-lg shadow">
+        {% if orders %}
+            <table class="min-w-full bg-white">
+                <thead>
+                    <tr>
+                        <th class="py-2 px-4 border-b">Order ID</th>
+                        <th class="py-2 px-4 border-b">Table Number</th>
+                        <th class="py-2 px-4 border-b">Status</th>
+                        <th class="py-2 px-4 border-b">Total Amount</th>
+                        <th class="py-2 px-4 border-b">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for order in orders %}
+                    <tr>
+                        <td class="py-2 px-4 border-b">{{ order.order_id }}</td>
+                        <td class="py-2 px-4 border-b">
+                            {% if order.table %}
+                                Table #{{ order.table.number }}
+                            {% elif order.order_type == 'takeaway' %}
+                                Takeaway
+                            {% elif order.order_type == 'delivery' %}
+                                Delivery
+                            {% endif %}
+                        </td>
+                        <td class="py-2 px-4 border-b">{{ order.status }}</td>
+                        <td class="py-2 px-4 border-b">${{ order.total_amount }}</td>
+                        <td class="py-2 px-4 border-b">
+                            <a href="{% url 'restaurant:order_details' order.order_id %}" class="text-blue-500 hover:underline">View</a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <p class="text-xl">No orders are currently being prepared.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

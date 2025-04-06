@@ -1,0 +1,68 @@
+{% extends 'restaurant/base.html' %}
+
+{% block title %}{{ form.instance.pk|yesno:"Edit Menu Item,Add New Menu Item" }}{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="max-w-2xl mx-auto">
+        <div class="mb-8">
+            <a href="{% url 'restaurant:menuitem_list' %}" 
+               class="text-blue-600 hover:text-blue-800 flex items-center">
+                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+                </svg>
+                Back to Menu List
+            </a>
+        </div>
+
+        <div class="bg-white rounded-lg shadow-lg overflow-hidden">
+            <div class="p-8">
+                <h1 class="text-3xl font-bold text-gray-900 mb-6">
+                    {{ form.instance.pk|yesno:"Edit Menu Item,Add New Menu Item" }}
+                </h1>
+
+                <form method="post" enctype="multipart/form-data" class="space-y-6">
+                    {% csrf_token %}
+                    
+                    {% for field in form %}
+                    <div class="space-y-2">
+                        <label for="{{ field.id_for_label }}" 
+                               class="block text-sm font-medium text-gray-700">
+                            {{ field.label }}
+                        </label>
+                        <div class="mt-1">
+                            {{ field }}
+                        </div>
+                        {% if field.help_text %}
+                        <p class="text-sm text-gray-500">{{ field.help_text }}</p>
+                        {% endif %}
+                        {% if field.errors %}
+                        <div class="text-red-600 text-sm">
+                            {{ field.errors }}
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+
+                    <div class="flex space-x-4 pt-6">
+                        <button type="submit" 
+                                class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors duration-200">
+                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                            </svg>
+                            {{ form.instance.pk|yesno:"Update Item,Create Item" }}
+                        </button>
+                        <a href="{% url 'restaurant:menuitem_list' %}" 
+                           class="inline-flex items-center px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors duration-200">
+                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                            </svg>
+                            Cancel
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

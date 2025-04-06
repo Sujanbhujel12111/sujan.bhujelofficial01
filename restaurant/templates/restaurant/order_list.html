@@ -1,0 +1,85 @@
+{% extends 'restaurant/base.html' %}
+{% load custom_filters %}
+{% block title %}Order List{% endblock %}
+
+{% block content %}
+<div class="container mx-auto mt-10">
+    <h1 class="text-4xl font-bold mb-8">Order List</h1>
+    <div class="bg-white p-6 rounded-lg shadow">
+        <table class="min-w-full bg-white border border-gray-200 rounded-lg">
+            <thead>
+                <tr class="bg-gray-100">
+                    <th class="py-2 px-4 border-b">Order ID</th>
+                    <th class="py-2 px-4 border-b">Order Type</th>
+                    <th class="py-2 px-4 border-b">Status</th>
+                    <th class="py-2 px-4 border-b">Total Amount</th>
+                    <th class="py-2 px-4 border-b">Payment Status</th>
+                    <th class="py-2 px-4 border-b">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for order in orders %}
+                {% with total_payments=order.payments.all|sum_payments %}
+                <tr class="hover:bg-gray-50">
+                    <td class="py-2 px-4 border-b">{{ order.order_id }}</td>
+                    <td class="py-2 px-4 border-b">
+                        {% if order.table %}
+                            Table #{{ order.table.number }}
+                        {% elif order.order_type == 'takeaway' %}
+                            Takeaway
+                        {% elif order.order_type == 'delivery' %}
+                            Delivery
+                        {% endif %}
+                    </td>
+                    <td class="py-2 px-4 border-b">
+                        <form method="post" action="{% url 'restaurant:update_order_status' pk=order.id %}">
+                            {% csrf_token %}
+                            <select name="status" onchange="this.form.submit()" class="border rounded px-2 py-1">
+                                {% for status in order.ORDER_STATUS_CHOICES %}
+                                    <option value="{{ status.0 }}" {% if order.status == status.0 %}selected{% endif %} class="{% if status.0 == 'completed' %}text-green-600{% endif %}">
+                                        {{ status.1 }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </form>
+                    </td>
+                    <td class="py-2 px-4 border-b">
+                        {% if order.order_type == 'delivery' %}
+                            Rs.{{ order.total_amount|add:order.delivery_charge }}
+                            <span class="text-sm text-gray-500 block text-right">
+                                (Order: Rs.{{ order.total_amount }} + Delivery: Rs.{{ order.delivery_charge }})
+                            </span>
+                        {% else %}
+                            Rs.{{ order.total_amount }}
+                        {% endif %}
+                    </td>
+                    <td class="py-2 px-4 border-b">
+                        {% if order.order_type == 'delivery' %}
+                            {% if total_payments >= order.total_amount|add:order.delivery_charge %}
+                                <span class="px-2 py-1 bg-green-100 text-green-800 rounded-full text-sm">Settled</span>
+                            {% else %}
+                                <span class="px-2 py-1 bg-red-100 text-red-800 rounded-full text-sm">
+                                    Pending (Rs.{{ order.total_amount|add:order.delivery_charge|subtract:total_payments }})
+                                </span>
+                            {% endif %}
+                        {% else %}
+                            {% if total_payments >= order.total_amount %}
+                                <span class="px-2 py-1 bg-green-100 text-green-800 rounded-full text-sm">Settled</span>
+                            {% else %}
+                                <span class="px-2 py-1 bg-red-100 text-red-800 rounded-full text-sm">
+                                    Pending (Rs.{{ order.total_amount|subtract:total_payments }})
+                                </span>
+                            {% endif %}
+                        {% endif %}
+                    </td>
+                    <td class="py-2 px-4 border-b">
+                        <a href="{% url 'restaurant:order_details' order_id=order.order_id %}" class="text-blue-500 hover:text-blue-700">View</a>
+                    </td>
+                </tr>
+                {% endwith %}
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

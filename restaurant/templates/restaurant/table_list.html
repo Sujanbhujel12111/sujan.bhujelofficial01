@@ -1,0 +1,35 @@
+{% extends 'restaurant/base.html' %}
+
+{% block title %}Table List - Restaurant Management System{% endblock %}
+
+{% block content %}
+<div class="container mx-auto mt-10">
+    <h1 class="text-4xl font-bold mb-8">Table List</h1>
+    <div class="bg-white p-6 rounded-lg shadow">
+        <table class="min-w-full bg-white">
+            <thead>
+                <tr>
+                    <th class="py-2 px-4 border-b">Table Number</th>
+                    <th class="py-2 px-4 border-b">Capacity</th>
+                    <th class="py-2 px-4 border-b">Occupied</th>
+                    <th class="py-2 px-4 border-b">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for table in tables %}
+                <tr>
+                    <td class="py-2 px-4 border-b">{{ table.number }}</td>
+                    <td class="py-2 px-4 border-b">{{ table.capacity }}</td>
+                    <td class="py-2 px-4 border-b">{{ table.is_occupied|yesno:"Yes,No" }}</td>
+                    <td class="py-2 px-4 border-b">
+                        <a href="{% url 'restaurant:place_order' table_id=table.id %}" class="py-1 px-2 bg-blue-500 text-white rounded hover:bg-blue-600">Place Order</a>
+                        <a href="{% url 'restaurant:table_update' pk=table.id %}" class="py-1 px-2 bg-yellow-500 text-white rounded hover:bg-yellow-600">Edit</a>
+                        <a href="{% url 'restaurant:table_delete' pk=table.id %}" class="py-1 px-2 bg-red-500 text-white rounded hover:bg-red-600">Delete</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

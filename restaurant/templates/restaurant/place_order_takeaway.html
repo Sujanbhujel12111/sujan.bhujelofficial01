@@ -1,0 +1,236 @@
+{% extends 'restaurant/base.html' %}
+
+{% block title %}Place Takeaway Order{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-3xl font-bold text-gray-800">Place Takeaway Order</h1>
+        <div class="bg-orange-100 p-3 rounded-lg">
+            <span class="text-orange-800 font-semibold">Takeaway Order</span>
+        </div>
+    </div>
+
+    <div class="bg-white rounded-lg shadow-lg p-6">
+        <form method="post" id="orderForm">
+            {% csrf_token %}
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                <div class="space-y-4">
+                    <div class="form-group">
+                        <label class="block text-sm font-medium text-gray-700">Customer Name</label>
+                        {{ order_form.customer_name }}
+                    </div>
+                    <div class="form-group">
+                        <label class="block text-sm font-medium text-gray-700">Phone Number</label>
+                        {{ order_form.customer_phone }}
+                    </div>
+                </div>
+                <div>
+                    <div class="form-group">
+                        <label class="block text-sm font-medium text-gray-700">Special Notes</label>
+                        {{ order_form.special_notes }}
+                    </div>
+                </div>
+            </div>
+
+            <div class="border-t border-gray-200 pt-4">
+                <h2 class="text-xl font-semibold mb-4">Order Items</h2>
+                {{ formset.management_form }}
+                
+                <div class="overflow-x-auto">
+                    <table class="w-full mb-4">
+                        <thead>
+                            <tr class="bg-gray-50">
+                                <th class="px-4 py-2 text-left">Item</th>
+                                <th class="px-4 py-2 text-left w-32">Quantity</th>
+                                <th class="px-4 py-2 text-right">Price</th>
+                                <th class="px-4 py-2 text-right">Subtotal</th>
+                                <th class="px-4 py-2 w-16"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="order-items">
+                            {% for form in formset %}
+                            <tr class="order-item-row border-b">
+                                <td class="px-4 py-2">
+                                    <select name="form-{{ forloop.counter0 }}-item" 
+                                            class="w-full rounded-md item-select" 
+                                            required>
+                                        <option value="">Select an item</option>
+                                        {% for menu_item in menu_items %}
+                                            <option value="{{ menu_item.id }}" 
+                                                    data-price="{{ menu_item.price }}">
+                                                {{ menu_item.name }} - Rs.{{ menu_item.price }}
+                                            </option>
+                                        {% endfor %}
+                                    </select>
+                                </td>
+                                <td class="px-4 py-2">
+                                    <input type="number" 
+                                           name="form-{{ forloop.counter0 }}-quantity" 
+                                           value="1" 
+                                           min="1" 
+                                           class="w-24 rounded-md quantity-input" 
+                                           required>
+                                </td>
+                                <td class="px-4 py-2 text-right item-price">Rs.0.00</td>
+                                <td class="px-4 py-2 text-right item-subtotal">Rs.0.00</td>
+                                <td class="px-4 py-2 text-center">
+                                    <button type="button" 
+                                            onclick="removeOrderItem(this)" 
+                                            class="text-red-500 hover:text-red-700">
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                                        </svg>
+                                    </button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                        <tfoot>
+                            <tr class="border-t-2">
+                                <td colspan="3" class="px-4 py-2 text-right font-semibold">Total Amount:</td>
+                                <td class="px-4 py-2 text-right font-bold" id="total-amount">Rs.0.00</td>
+                                <td></td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+
+            <div class="flex justify-between items-center mt-6">
+                <button type="button" 
+                        onclick="addOrderItem()" 
+                        class="flex items-center px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                    </svg>
+                    Add Item
+                </button>
+                
+                <div class="space-x-4">
+                    <a href="{% url 'restaurant:table_list' %}" 
+                       class="px-6 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors">
+                        Cancel
+                    </a>
+                    <button type="submit" 
+                            class="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
+                        Place Order
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    let totalForms = parseInt(document.getElementById('id_form-TOTAL_FORMS').value);
+
+    function addOrderItem() {
+        const tbody = document.getElementById('order-items');
+        const tr = document.createElement('tr');
+        tr.className = 'order-item-row border-b';
+        
+        tr.innerHTML = `
+            <td class="px-4 py-2">
+                <select name="form-${totalForms}-item" class="w-full rounded-md item-select" required>
+                    <option value="">Select an item</option>
+                    {% for menu_item in menu_items %}
+                        <option value="{{ menu_item.id }}" data-price="{{ menu_item.price }}">
+                            {{ menu_item.name }} - Rs.{{ menu_item.price }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </td>
+            <td class="px-4 py-2">
+                <input type="number" 
+                       name="form-${totalForms}-quantity" 
+                       value="1" 
+                       min="1" 
+                       class="w-24 rounded-md quantity-input"
+                       required>
+            </td>
+            <td class="px-4 py-2 text-right item-price">Rs.0.00</td>
+            <td class="px-4 py-2 text-right item-subtotal">Rs.0.00</td>
+            <td class="px-4 py-2 text-center">
+                <button type="button" 
+                        onclick="removeOrderItem(this)" 
+                        class="text-red-500 hover:text-red-700">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                    </svg>
+                </button>
+            </td>
+        `;
+        
+        tbody.appendChild(tr);
+        totalForms += 1;
+        document.getElementById('id_form-TOTAL_FORMS').value = totalForms;
+        
+        const newSelect = tr.querySelector('.item-select');
+        const newQuantity = tr.querySelector('.quantity-input');
+        newSelect.addEventListener('change', () => updateRowPrices(tr));
+        newQuantity.addEventListener('input', () => updateRowPrices(tr));
+    }
+
+    function removeOrderItem(button) {
+        const row = button.closest('.order-item-row');
+        row.remove();
+        updateFormIndexes();
+        calculateTotal();
+    }
+
+    function updateFormIndexes() {
+        const rows = document.querySelectorAll('.order-item-row');
+        rows.forEach((row, index) => {
+            row.querySelector('.item-select').name = `form-${index}-item`;
+            row.querySelector('.quantity-input').name = `form-${index}-quantity`;
+        });
+        totalForms = rows.length;
+        document.getElementById('id_form-TOTAL_FORMS').value = totalForms;
+    }
+
+    function updateRowPrices(row) {
+        const select = row.querySelector('.item-select');
+        const quantityInput = row.querySelector('.quantity-input');
+        const priceCell = row.querySelector('.item-price');
+        const subtotalCell = row.querySelector('.item-subtotal');
+        
+        const selectedOption = select.selectedOptions[0];
+        const price = selectedOption ? parseFloat(selectedOption.dataset.price) : 0;
+        const quantity = parseInt(quantityInput.value) || 0;
+        
+        const subtotal = price * quantity;
+        
+        priceCell.textContent = `Rs.${price.toFixed(2)}`;
+        subtotalCell.textContent = `Rs.${subtotal.toFixed(2)}`;
+        
+        calculateTotal();
+    }
+
+    function calculateTotal() {
+        let total = 0;
+        document.querySelectorAll('.item-subtotal').forEach(cell => {
+            const subtotal = parseFloat(cell.textContent.replace('Rs.', '')) || 0;
+            total += subtotal;
+        });
+        document.getElementById('total-amount').textContent = `Rs.${total.toFixed(2)}`;
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        const rows = document.querySelectorAll('.order-item-row');
+        rows.forEach(row => {
+            const select = row.querySelector('.item-select');
+            const quantity = row.querySelector('.quantity-input');
+            select.addEventListener('change', () => updateRowPrices(row));
+            quantity.addEventListener('input', () => updateRowPrices(row));
+        });
+        
+        if (rows.length === 0) {
+            addOrderItem();
+        }
+        
+        rows.forEach(row => updateRowPrices(row));
+    });
+</script>
+{% endblock %}

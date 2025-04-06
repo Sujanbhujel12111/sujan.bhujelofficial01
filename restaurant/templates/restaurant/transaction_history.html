@@ -1,0 +1,453 @@
+{% extends 'restaurant/base.html' %}
+
+{% block title %}Transaction History{% endblock %}
+
+{% block extrahead %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="container mx-auto mt-10">
+    <h1 class="text-4xl font-bold mb-8">Transaction History</h1>
+
+    <!-- Filters Section -->
+    <div class="bg-white p-6 rounded-lg shadow mb-6">
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Start Date</label>
+                <input type="date" id="start-date" class="w-full border rounded p-2">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">End Date</label>
+                <input type="date" id="end-date" class="w-full border rounded p-2">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Order Type</label>
+                <select id="order-type" class="w-full border rounded p-2">
+                    <option value="">All</option>
+                    <option value="table">Table</option>
+                    <option value="takeaway">Takeaway</option>
+                    <option value="delivery">Delivery</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <div class="bg-white p-6 rounded-lg shadow">
+        <!-- Entries and Search Controls -->
+        <div class="flex justify-between items-center mb-4">
+            <div class="flex items-center">
+                <span class="mr-2">Show</span>
+                <select id="entries-select" class="border rounded px-2 py-1">
+                    <option value="10">10</option>
+                    <option value="50">50</option>
+                    <option value="100">100</option>
+                </select>
+                <span class="ml-2">entries</span>
+            </div>
+            <div class="flex items-center">
+                <span class="mr-2">Search:</span>
+                <input type="text" id="search-input" class="border rounded px-2 py-1 w-64" placeholder="Search orders...">
+            </div>
+            <div class="flex gap-2">
+                <button onclick="exportToExcel()" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">
+                    Export Excel
+                </button>
+                <button onclick="generatePDF()" class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600">
+                    Export PDF
+                </button>
+            </div>
+        </div>
+
+        <!-- Main Table -->
+        <table id="orders-table" class="min-w-full bg-white">
+            <thead>
+                <tr>
+                    <th class="py-2 px-4 border-b">Order ID</th>
+                    <th class="py-2 px-4 border-b">Customer Name</th>
+                    <th class="py-2 px-4 border-b">Order Type</th>
+                    <th class="py-2 px-4 border-b">Total Amount</th>
+                    <th class="py-2 px-4 border-b">Status</th>
+                    <th class="py-2 px-4 border-b">Completed By</th>
+                    <th class="py-2 px-4 border-b">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for order in orders %}
+                <tr class="order-row" data-order-type="{{ order.order_type }}">
+                    <td class="py-2 px-4 border-b">{{ order.order_id }}</td>
+                    <td class="py-2 px-4 border-b">{{ order.customer_name }}</td>
+                    <td class="py-2 px-4 border-b">
+                        {% if order.table %}
+                            Table #{{ order.table.number }}
+                        {% elif order.order_type == 'takeaway' %}
+                            Takeaway
+                        {% elif order.order_type == 'delivery' %}
+                            Delivery
+                        {% endif %}
+                    </td>
+                    <td class="py-2 px-4 border-b">Rs.{{ order.total_amount }}</td>
+                    <td class="py-2 px-4 border-b">{{ order.status }}</td>
+                    <td class="py-2 px-4 border-b">
+                        {% if order.completed_by %}
+                            {{ order.completed_by.get_full_name }}
+                        {% else %}
+                            N/A
+                        {% endif %}
+                    </td>
+                    <td class="py-2 px-4 border-b">
+                        <button onclick="showOrderDetails('{{ order.order_id }}')" 
+                                class="py-2 px-4 bg-blue-500 text-white rounded hover:bg-blue-600">
+                            View Details
+                        </button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+
+
+
+            <!-- Pagination -->
+            <div class="pagination mt-4 flex justify-center space-x-2">
+            <div class="text-sm text-gray-600">
+                    Showing {{ orders.start_index }} to {{ orders.end_index }} of {{ orders.paginator.count }} entries
+                </div>
+                <div class="flex space-x-2">
+                    {% if orders.has_previous %}
+                        <a href="?page={{ orders.previous_page_number }}" class="px-3 py-1 border rounded hover:bg-gray-100">Previous</a>
+                    {% endif %}
+                    
+                    {% for num in orders.paginator.page_range %}
+                        {% if num == orders.number %}
+                            <span class="px-3 py-1 border rounded bg-blue-500 text-white">{{ num }}</span>
+                        {% else %}
+                            <a href="?page={{ num }}" class="px-3 py-1 border rounded hover:bg-gray-100">{{ num }}</a>
+                        {% endif %}
+                    {% endfor %}
+                    
+                    {% if orders.has_next %}
+                        <a href="?page={{ orders.next_page_number }}" class="px-3 py-1 border rounded hover:bg-gray-100">Next</a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+
+    </div>
+</div>
+
+<!-- Order Details Modal -->
+<div id="order-details-modal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full">
+    <div class="relative top-20 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-1/2 shadow-lg rounded-md bg-white">
+        <div class="flex justify-between items-center mb-4">
+            <h2 class="text-2xl font-bold">Order Details</h2>
+            <button onclick="closeModal()" class="text-gray-600 hover:text-gray-800">
+                <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+            </button>
+        </div>
+        
+        <div id="modal-content" class="mt-4">
+            <!-- Basic Information -->
+            <div class="border-b pb-4 mb-4">
+                <h3 class="font-semibold text-lg mb-2">Basic Information</h3>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <p class="text-gray-600">Order ID:</p>
+                        <p id="modal-order-id" class="font-medium"></p>
+                    </div>
+                    <div>
+                        <p class="text-gray-600">Customer Name:</p>
+                        <p id="modal-customer-name" class="font-medium"></p>
+                    </div>
+                    <div>
+                        <p class="text-gray-600">Phone:</p>
+                        <p id="modal-customer-phone" class="font-medium"></p>
+                    </div>
+                    <div>
+                        <p class="text-gray-600">Order Type:</p>
+                        <p id="modal-order-type" class="font-medium"></p>
+                    </div>
+                    <div>
+                        <p class="text-gray-600">Completed By:</p>
+                        <p id="modal-completed-by" class="font-medium"></p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Order Items -->
+            <div class="border-b pb-4 mb-4">
+                <h3 class="font-semibold text-lg mb-2">Order Items</h3>
+                <div id="modal-order-items" class="space-y-2"></div>
+            </div>
+
+
+
+<!-- Update the Payment Information section in the modal -->
+<div class="border-b pb-4 mb-4">
+    <h3 class="font-semibold text-lg mb-2">Payment Information</h3>
+    <div id="modal-payment-info">
+        <div class="mb-2">
+            <p class="text-gray-600">Total Amount:</p>
+            <p id="modal-total-amount" class="font-medium"></p>
+        </div>
+        <div class="mb-2">
+            <p class="text-gray-600">Payment Methods:</p>
+            <div id="modal-payment-methods" class="space-y-1"></div>
+        </div>
+    </div>
+</div>
+
+
+            <!-- Additional Information -->
+            <div>
+                <h3 class="font-semibold text-lg mb-2">Additional Information</h3>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <p class="text-gray-600">Order Date:</p>
+                        <p id="modal-created-date" class="font-medium"></p>
+                    </div>
+                    <div>
+                        <p class="text-gray-600">Completion Date:</p>
+                        <p id="modal-completed-date" class="font-medium"></p>
+                    </div>
+                    <div>
+                        <p class="text-gray-600">Special Notes:</p>
+                        <p id="modal-special-notes" class="font-medium"></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+
+// Table functionality
+let currentData = [];
+const rows = document.querySelectorAll('.order-row');
+rows.forEach(row => currentData.push({
+    row: row,
+    searchText: row.textContent.toLowerCase(),
+    orderType: row.dataset.orderType
+}));
+
+// Search functionality
+document.getElementById('search-input').addEventListener('input', function() {
+    const searchTerm = this.value.toLowerCase();
+    filterAndDisplayData();
+});
+
+// Entries per page
+document.getElementById('entries-select').addEventListener('change', function() {
+    filterAndDisplayData();
+});
+
+// Date and order type filters
+['start-date', 'end-date', 'order-type'].forEach(id => {
+    document.getElementById(id).addEventListener('change', filterAndDisplayData);
+});
+
+function filterAndDisplayData() {
+    const searchTerm = document.getElementById('search-input').value.toLowerCase();
+    const startDate = document.getElementById('start-date').value;
+    const endDate = document.getElementById('end-date').value;
+    const orderType = document.getElementById('order-type').value;
+    const entriesPerPage = parseInt(document.getElementById('entries-select').value);
+    
+    const filteredData = currentData.filter(item => {
+        let show = item.searchText.includes(searchTerm);
+        if (orderType) show = show && item.orderType === orderType;
+        // Add date filtering if needed
+        return show;
+    });
+
+    // Update visibility
+    currentData.forEach(item => item.row.style.display = 'none');
+    filteredData.slice(0, entriesPerPage).forEach(item => item.row.style.display = '');
+
+    // Update pagination
+    updatePagination(Math.ceil(filteredData.length / entriesPerPage), 1, entriesPerPage);
+}
+
+function updatePagination(totalPages, currentPage, entriesPerPage) {
+    const paginationDiv = document.querySelector('.pagination');
+    let html = '';
+    
+    for (let i = 1; i <= totalPages; i++) {
+        html += `<button class="px-3 py-1 border rounded ${i === currentPage ? 'bg-blue-500 text-white' : 'hover:bg-gray-100'}"
+                         onclick="showPage(${i}, ${entriesPerPage})">${i}</button>`;
+    }
+    
+    paginationDiv.innerHTML = html;
+}
+
+function showPage(pageNum, entriesPerPage) {
+    const start = (pageNum - 1) * entriesPerPage;
+    const filteredData = currentData.filter(item => {
+        const searchTerm = document.getElementById('search-input').value.toLowerCase();
+        const orderType = document.getElementById('order-type').value;
+        let show = item.searchText.includes(searchTerm);
+        if (orderType) show = show && item.orderType === orderType;
+        return show;
+    });
+
+    currentData.forEach(item => item.row.style.display = 'none');
+    filteredData.slice(start, start + entriesPerPage).forEach(item => item.row.style.display = '');
+}
+
+// Export functions
+function generatePDF() {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+    const table = document.getElementById('orders-table');
+    
+    html2canvas(table).then(canvas => {
+        const imgData = canvas.toDataURL('image/png');
+        const imgWidth = 190;
+        const pageHeight = 290;
+        const imgHeight = canvas.height * imgWidth / canvas.width;
+        let heightLeft = imgHeight;
+        let position = 0;
+        
+        doc.addImage(imgData, 'PNG', 10, 10, imgWidth, imgHeight);
+        heightLeft -= pageHeight;
+        
+        while (heightLeft >= 0) {
+            position = heightLeft - imgHeight;
+            doc.addPage();
+            doc.addImage(imgData, 'PNG', 10, position, imgWidth, imgHeight);
+            heightLeft -= pageHeight;
+        }
+        
+        doc.save('transaction-history.pdf');
+    });
+}
+
+function exportToExcel() {
+    const table = document.getElementById('orders-table');
+    const ws = XLSX.utils.table_to_sheet(table);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Transaction History');
+    XLSX.writeFile(wb, 'transaction-history.xlsx');
+}
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', function() {
+    filterAndDisplayData();
+});
+
+
+function showOrderDetails(orderId) {
+    fetch(`/restaurant/order_history_details/${orderId}/`)
+    .then(response => {
+    if (!response.ok) {
+        throw new Error('Network response was not ok');
+    }
+    return response.json();
+})
+.then(data => {
+    console.log('Response data:', data); // Log the entire response data for debugging
+
+    // Populate basic information
+    document.getElementById('modal-order-id').textContent = data.order_id;
+    document.getElementById('modal-customer-name').textContent = data.customer_name;
+    document.getElementById('modal-customer-phone').textContent = data.customer_phone || 'N/A';
+
+    // Handle order type display
+    let orderTypeText = data.order_type;
+    if (data.order_type === 'table' && data.table) {
+        orderTypeText = `Table #${data.table.number}`;
+    }
+    document.getElementById('modal-order-type').textContent = orderTypeText;
+
+    // Display completed by information
+    console.log('Completed by:', data.completed_by); // Debugging line
+    document.getElementById('modal-completed-by').textContent = data.completed_by || 'N/A';
+
+    document.getElementById('modal-total-amount').textContent = `Rs.${data.total_amount}`;
+    const paymentMethodsContainer = document.getElementById('modal-payment-methods');
+            paymentMethodsContainer.innerHTML = '';
+            
+            if (data.payments && data.payments.length > 0) {
+                data.payments.forEach(payment => {
+                    const paymentDiv = document.createElement('div');
+                    paymentDiv.className = 'flex justify-between items-center py-1';
+                    paymentDiv.innerHTML = `
+                        <span class="font-medium">${payment.method}:</span>
+                        <span>Rs.${payment.amount}</span>
+                        ${payment.transaction_id ? `<span class="text-sm text-gray-500">(${payment.transaction_id})</span>` : ''}
+                    `;
+                    paymentMethodsContainer.appendChild(paymentDiv);
+                });
+            } else {
+                paymentMethodsContainer.innerHTML = '<p class="text-gray-500">No payment information available</p>';
+            }
+
+
+    document.getElementById('modal-created-date').textContent = new Date(data.created_at).toLocaleString();
+    document.getElementById('modal-completed-date').textContent = new Date(data.updated_at).toLocaleString();
+    document.getElementById('modal-special-notes').textContent = data.special_notes || 'N/A';
+            // Clear and populate order items
+            const itemsContainer = document.getElementById('modal-order-items');
+            itemsContainer.innerHTML = '';
+            
+            if (data.items && data.items.length > 0) {
+                // Add header row
+                const headerDiv = document.createElement('div');
+                headerDiv.className = 'flex justify-between items-center py-2 font-semibold border-b';
+                headerDiv.innerHTML = `
+                    <span class="w-1/2">Item</span>
+                    <span class="w-1/6 text-center">Qty</span>
+                    <span class="w-1/6 text-right">Price</span>
+                    <span class="w-1/6 text-right">Total</span>
+                `;
+                itemsContainer.appendChild(headerDiv);
+                
+                // Add items
+                data.items.forEach(item => {
+                    const itemDiv = document.createElement('div');
+                    itemDiv.className = 'flex justify-between items-center py-2 border-b';
+                    itemDiv.innerHTML = `
+                        <span class="w-1/2">${item.item_name}</span>
+                        <span class="w-1/6 text-center">${item.quantity}</span>
+                        <span class="w-1/6 text-right">Rs.${item.price}</span>
+                        <span class="w-1/6 text-right">Rs.${item.total}</span>
+                    `;
+                    itemsContainer.appendChild(itemDiv);
+                });
+            } else {
+                const noItemsDiv = document.createElement('div');
+                noItemsDiv.className = 'text-center py-4 text-gray-500';
+                noItemsDiv.textContent = 'No items found for this order';
+                itemsContainer.appendChild(noItemsDiv);
+            }
+
+            // Show modal
+            document.getElementById('order-details-modal').classList.remove('hidden');
+        })
+        .catch(error => {
+            console.error('Error fetching order details:', error);
+            alert('Error loading order details. Please try again.');
+        });
+}
+
+function closeModal() {
+    document.getElementById('order-details-modal').classList.add('hidden');
+}
+
+// Close modal when clicking outside
+document.getElementById('order-details-modal').addEventListener('click', function(e) {
+    if (e.target === this) {
+        closeModal();
+    }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,47 @@
+{% extends 'home/base.html' %}
+
+{% block title %}Dashboard - Restaurant Management System{% endblock %}
+
+{% block content %}
+<div class="container mx-auto mt-10">
+    <h1 class="text-4xl font-bold mb-8">Dashboard</h1>
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="bg-white p-6 rounded-lg shadow">
+            <h3 class="text-lg font-semibold mb-2">Pending Orders</h3>
+            <p class="text-3xl font-bold text-blue-500">{{ pending_orders }}</p>
+        </div>
+        <div class="bg-white p-6 rounded-lg shadow">
+            <h3 class="text-lg font-semibold mb-2">Active Tables</h3>
+            <p class="text-3xl font-bold text-green-500">{{ active_tables }}</p>
+        </div>
+        <div class="bg-white p-6 rounded-lg shadow">
+            <h3 class="text-lg font-semibold mb-2">Menu Items</h3>
+            <p class="text-3xl font-bold text-purple-500">{{ total_menu_items }}</p>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-10">
+        <div class="bg-white p-6 rounded-lg shadow">
+            <h3 class="text-lg font-semibold mb-2">Manage Menu</h3>
+            <a href="{% url 'restaurant:menu_management' %}" class="py-2 px-4 bg-blue-500 text-white rounded hover:bg-blue-600">Go to Menu Management</a>
+        </div>
+        <div class="bg-white p-6 rounded-lg shadow">
+            <h3 class="text-lg font-semibold mb-2">Process Payments</h3>
+            {% if orders %}
+                <a href="{% url 'restaurant:process_payment' order_id=orders.0.id %}" class="py-2 px-4 bg-green-500 text-white rounded hover:bg-green-600">Go to Payments</a>
+            {% else %}
+                <p class="text-red-500">No orders available for payment.</p>
+            {% endif %}
+        </div>
+        <div class="bg-white p-6 rounded-lg shadow">
+            <h3 class="text-lg font-semibold mb-2">View Orders</h3>
+            <a href="{% url 'restaurant:order_list' %}" class="py-2 px-4 bg-yellow-500 text-white rounded hover:bg-yellow-600">Go to Orders</a>
+        </div>
+        <div class="bg-white p-6 rounded-lg shadow">
+            <h3 class="text-lg font-semibold mb-2">Kitchen</h3>
+            <a href="{% url 'restaurant:kitchen' %}" class="py-2 px-4 bg-red-500 text-white rounded hover:bg-red-600">Go to Kitchen</a>
+        </div>
+    </div>
+    <li><a href="{% url 'home:logout' %}">Logout</a></li>
+</div>
+{% endblock %}
